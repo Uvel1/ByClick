@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Utilizadores ---
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  phone     String?
+  role      Role     @default(BUYER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relações
+  products  Product[]
+  orders    Order[]
+  address   Address[]
+  reviews   Review[]
+}
+
+enum Role {
+  BUYER
+  SELLER
+  ADMIN
+}
+
+// --- Endereços (geolocalização) ---
+model Address {
+  id        String  @id @default(uuid())
+  userId    String
+  street    String
+  city      String
+  province  String
+  latitude  Float
+  longitude Float
+  isDefault Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+// --- Produtos ---
+model Product {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  price       Decimal       @db.Decimal(10, 2)
+  condition   Condition     @default(NEW)
+  category    String
+  stock       Int           @default(0)
+  sellerId    String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  seller      User          @relation(fields: [sellerId], references: [id])
+  images      ProductImage[]
+  orderItems  OrderItem[]
+  reviews     Review[]
+}
+
+enum Condition {
+  NEW
+  USED
+  REFURBISHED
+}
+
+model ProductImage {
+  id        String  @id @default(uuid())
+  productId String
+  url       String
+  isPrimary Boolean @default(false)
+
+  product Product @relation(fields: [productId], references: [id])
+}
+
+// --- Encomendas ---
+model Order {
+  id         String      @id @default(uuid())
+  buyerId    String
+  status     OrderStatus @default(PENDING)
+  totalPrice Decimal     @db.Decimal(10, 2)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  buyer      User        @relation(fields: [buyerId], references: [id])
+  items      OrderItem[]
+  delivery   Delivery?
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Decimal @db.Decimal(10, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+}
+
+// --- Entregas ---
+model Delivery {
+  id          String         @id @default(uuid())
+  orderId     String         @unique
+  status      DeliveryStatus @default(ASSIGNED)
+  address     String
+  scheduledAt DateTime?
+  deliveredAt DateTime?
+
+  order Order @relation(fields: [orderId], references: [id])
+}
+
+enum DeliveryStatus {
+  ASSIGNED
+  IN_TRANSIT
+  DELIVERED
+  FAILED
+}
+
+// --- Avaliações ---
+model Review {
+  id        String   @id @default(uuid())
+  userId    String
+  productId String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+}
